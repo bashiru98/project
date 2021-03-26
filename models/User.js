@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+const _ = require("lodash")
 
 const UserSchema = new mongoose.Schema({
   
@@ -14,11 +14,14 @@ const UserSchema = new mongoose.Schema({
       'Please add a valid email',
     ],
   },
-  
-  createdAt: {
-    type: Date,
-    default: Date.now,
+  password:{
+    type:String,
+    required:[true, "Password is required"]
+
   },
+  refreshToken: {type:String},
+	createdAt: { type: Date, required: true ,default:Date.now()},
+  currentToken:{type:String}
 });
 
 // Encrypt password using bcrypt
@@ -29,19 +32,21 @@ UserSchema.pre('save', async function (next) {
 
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  
 });
 
+
+
 // Sign JWT and return
+
 UserSchema.methods.getSignedJwtToken = function () {
   return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
+      expiresIn: process.env.JWT_EXPIRE
   });
 };
-
-// Sign refreshToken JWT and return
-UserSchema.methods.getRefreshJwtToken = function () {
-  return jwt.sign({ id: this._id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.REFRESH_TOKEN_EXPIRE,
+UserSchema.methods.getRefreshToken = function () {
+  return jwt.sign({ id: this._id }, process.env.REFRESH_TOKEN_SECRET, {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRE,
   });
 };
 

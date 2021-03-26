@@ -58,7 +58,7 @@ app.use(limiter);
 app.use(hpp());
 
 // Enable CORS to allow access from all domains
-app.use(cors("*"));
+app.use(cors());
 
 // Mount routers
 

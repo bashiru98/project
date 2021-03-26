@@ -11,19 +11,20 @@ exports.register = asyncHandler(async (req, res, next) => {
     password,
   });
 
-  sendTokenResponse(user, 200, res);
+  sendTokenResponse(user, 200,res);
 });
 
 exports.login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
+ 
 
   // Validate email & password
-  if (!email || !password) {
+  if (!email && !password) {
     return next(new ErrorResponse('Please provide an email and password', 400));
   }
 
   // Check for user
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email })
 
   if (!user) {
     return next(new ErrorResponse('User does not exist', 401));
@@ -40,21 +41,24 @@ exports.login = asyncHandler(async (req, res, next) => {
 });
 
 exports.logout = asyncHandler(async (req, res, next) => {
-    res.cookie('token', 'none', {
-      expires: new Date(Date.now() + 10 * 1000),
-      httpOnly: true,
-    });
-  
+
+  const option = JSON.parse(req.params.all) ==true ? {$set:{refreshToken:" none",currentToken:"none "}}:{$set:{currentToken:"none"}}
+
+  const user = await User.findOneAndUpdate({_id:req.user.id},option,{new:true})
+
     res.status(200).json({
       success: true,
-      data: {},
+      data: {
+        token:user.currentToken,
+        refreshToken:user.refreshToken,
+      },
     });
   });
   
 exports.getInfo = asyncHandler(async (req, res, next) => {
   // user is already available in req due to the protect middleware
   const user = req.user;
- const userInfo = await User.findOne({ _id:user.id}).select('-password')
+ const userInfo = await User.findOne({ _id:user.id}).select(['-password', '-refreshToken', '-currentToken',"-__v"])
 
   res.status(200).json({
     success: true,
@@ -63,13 +67,15 @@ exports.getInfo = asyncHandler(async (req, res, next) => {
 });
 
 // Get token from model, create cookie and send response
-const sendTokenResponse = (user, statusCode, res) => {
+const sendTokenResponse = asyncHandler (async(user, statusCode, res) => {
   // Create token
   const token = user.getSignedJwtToken();
-  const refreshToken = user.getRefreshJwtToken()
+  const refreshToken = user.getRefreshToken();
+  await User.findOneAndUpdate({_id:user._id}, {$set:{refreshToken,currentToken:token}})
   res.status(statusCode).json({
+    
     success: true,
     token,
     refreshToken,
   });
-};
+});
